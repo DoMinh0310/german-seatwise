@@ -331,21 +331,25 @@ function findArrangement(students, rules, layout, seed) {
   const otherStudents = students.filter((student) => !state.frontRow.includes(student.id));
   const blocked = new Set(rules.map(([first, second]) => [first, second].sort().join('|')));
   const random = seededRandom(seed);
-  let best = null;
-  for (let attempt = 0; attempt < 300 && !best; attempt += 1) {
-    const candidates = frontStudents.length
-      ? shuffle(frontStudents, random).concat(shuffle(otherStudents, random))
-      : shuffle(students, random);
-    tables.forEach((table) => { table.length = 0; });
-    let valid = true;
-    candidates.forEach((student, studentIndex) => {
-      const tableIndex = Math.floor(studentIndex / 2);
-      if (!canSit(student, tableIndex, tables, layout, blocked)) valid = false;
-      else tables[tableIndex].push(student);
+  const candidates = frontStudents.length
+    ? shuffle(frontStudents, random).concat(shuffle(otherStudents, random))
+    : shuffle(students, random);
+  const placeNext = (studentIndex) => {
+    if (studentIndex === candidates.length) return true;
+    const student = candidates[studentIndex];
+    const eligibleTables = tables.map((table, index) => index).filter((index) => {
+      const isFrontEligible = !frontStudents.includes(student) || index < layout.columns;
+      return isFrontEligible && tables[index].length < 2;
     });
-    if (valid) best = tables.map((table) => [...table]);
-  }
-  return best;
+    for (const tableIndex of shuffle(eligibleTables, random)) {
+      if (!canSit(student, tableIndex, tables, layout, blocked)) continue;
+      tables[tableIndex].push(student);
+      if (placeNext(studentIndex + 1)) return true;
+      tables[tableIndex].pop();
+    }
+    return false;
+  };
+  return placeNext(0) ? tables.map((table) => [...table]) : null;
 }
 
 function canSit(student, index, tables, layout, blocked) {
