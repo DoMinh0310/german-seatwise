@@ -223,9 +223,15 @@ $('#resetData').addEventListener('click', () => {
 let dragSourceId = null;
 document.addEventListener('dragstart', (e) => {
   const option = e.target.closest('.front-student-option');
+  const card = e.target.closest('.student-card');
   const seat = e.target.closest('.seat.occupied');
+  
   if (option) {
     dragSourceId = option.dataset.dragId;
+    e.dataTransfer.setData('text/plain', dragSourceId);
+    e.dataTransfer.effectAllowed = 'copyMove';
+  } else if (card) {
+    dragSourceId = card.dataset.dragId;
     e.dataTransfer.setData('text/plain', dragSourceId);
     e.dataTransfer.effectAllowed = 'copyMove';
   } else if (seat) {
@@ -369,6 +375,8 @@ function renderStudents() {
   state.students.forEach((student) => {
     const card = document.createElement('div');
     card.className = `student-card ${student.present ? 'present' : 'absent'}`;
+    card.setAttribute('draggable', 'true');
+    card.setAttribute('data-drag-id', student.id);
     card.innerHTML = `<span class="avatar ${avatarTone(student)}">${initials(student.name)}</span><span class="student-name" title="${escapeHtml(student.name)}">${escapeHtml(student.name)}</span><button class="attendance-toggle" type="button" data-toggle="${student.id}" aria-label="${student.present ? 'Đánh dấu vắng' : 'Đánh dấu có mặt'}"></button><button class="remove-student" type="button" data-remove="${student.id}" title="Xóa học sinh">×</button>`;
     els.studentList.appendChild(card);
   });
@@ -456,6 +464,15 @@ function findArrangement(students, rules, layout, seed) {
   const otherStudents = unpinnedStudents.filter((student) => !state.frontRow.includes(student.id));
   const blocked = new Set(rules.map(([first, second]) => [first, second].sort().join('|')));
   const random = seededRandom(seed);
+  
+  const totalStudents = students.length;
+  const allowedSeats = new Set(fixedSeats.map(fs => fs.tableIndex * 2 + fs.seatIndex));
+  let seatIdx = 0;
+  while (allowedSeats.size < totalStudents) {
+    allowedSeats.add(seatIdx);
+    seatIdx++;
+  }
+
   const candidates = frontStudents.length
     ? shuffle(frontStudents, random).concat(shuffle(otherStudents, random))
     : shuffle(unpinnedStudents, random);
@@ -469,6 +486,9 @@ function findArrangement(students, rules, layout, seed) {
     });
     for (const tableIndex of eligibleTables) {
       const emptySeatIndex = tables[tableIndex][0] === undefined ? 0 : 1;
+      const flatIndex = tableIndex * 2 + emptySeatIndex;
+      if (!allowedSeats.has(flatIndex)) continue;
+
       if (!canSit(student, tableIndex, tables, layout, blocked)) continue;
       tables[tableIndex][emptySeatIndex] = student;
       if (placeNext(studentIndex + 1)) return true;
