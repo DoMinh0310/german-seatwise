@@ -97,6 +97,7 @@ els.studentList.addEventListener('click', (event) => {
     state.students = state.students.filter((student) => student.id !== id);
     state.rules = state.rules.filter((rule) => !rule.includes(id));
     state.frontRow = state.frontRow.filter((studentId) => studentId !== id);
+    state.fixedSeats = state.fixedSeats.filter((fs) => fs.studentId !== id);
     clearArrangement();
     saveState();
     render();
@@ -208,6 +209,7 @@ $('#resetData').addEventListener('click', () => {
   state.rules = [];
   state.arrangement = [];
   state.frontRow = [];
+  state.fixedSeats = [];
   state.seed = '';
   state.history = {};
   state.lastRandomized = null;
@@ -216,6 +218,99 @@ $('#resetData').addEventListener('click', () => {
   renderHistory();
   renderAttendance();
   showToast('Đã làm trống dữ liệu.');
+});
+
+let dragSourceId = null;
+document.addEventListener('dragstart', (e) => {
+  const option = e.target.closest('.front-student-option');
+  const seat = e.target.closest('.seat.occupied');
+  if (option) {
+    dragSourceId = option.dataset.dragId;
+    e.dataTransfer.setData('text/plain', dragSourceId);
+    e.dataTransfer.effectAllowed = 'copyMove';
+  } else if (seat) {
+    dragSourceId = seat.dataset.studentId;
+    e.dataTransfer.setData('text/plain', dragSourceId);
+    e.dataTransfer.effectAllowed = 'move';
+    setTimeout(() => seat.classList.add('is-dragging'), 0);
+  }
+});
+document.addEventListener('dragend', (e) => {
+  const seat = e.target.closest('.seat.occupied');
+  if (seat) seat.classList.remove('is-dragging');
+  dragSourceId = null;
+});
+els.board.addEventListener('dragover', (e) => {
+  const seat = e.target.closest('.seat');
+  if (seat && dragSourceId) {
+    e.preventDefault();
+    seat.classList.add('drag-over');
+  }
+});
+els.board.addEventListener('dragleave', (e) => {
+  const seat = e.target.closest('.seat');
+  if (seat) seat.classList.remove('drag-over');
+});
+els.board.addEventListener('drop', (e) => {
+  const seat = e.target.closest('.seat');
+  if (!seat) return;
+  e.preventDefault();
+  seat.classList.remove('drag-over');
+  
+  const studentId = e.dataTransfer.getData('text/plain') || dragSourceId;
+  if (!studentId) return;
+  
+  const tableIndex = Number(seat.dataset.tableIndex);
+  const seatIndex = Number(seat.dataset.seatIndex);
+  
+  if (state.arrangement && state.arrangement.length) {
+      let srcTable, srcSeat, srcStudent;
+      for (let i = 0; i < state.arrangement.length; i++) {
+          for (let j = 0; j < state.arrangement[i].length; j++) {
+              if (state.arrangement[i][j] && state.arrangement[i][j].id === studentId) {
+                  srcTable = i; srcSeat = j; srcStudent = state.arrangement[i][j];
+              }
+          }
+      }
+      if (srcStudent) {
+          const destStudent = state.arrangement[tableIndex][seatIndex];
+          state.arrangement[tableIndex][seatIndex] = srcStudent;
+          state.arrangement[srcTable][srcSeat] = destStudent;
+          
+          const targetStudentId = seat.dataset.studentId;
+          if (!state.fixedSeats) state.fixedSeats = [];
+          const draggedPin = state.fixedSeats.find(fs => fs.studentId === studentId);
+          state.fixedSeats = state.fixedSeats.filter(fs => fs.studentId !== studentId && fs.studentId !== targetStudentId);
+          state.fixedSeats.push({ studentId, tableIndex, seatIndex });
+          if (targetStudentId && draggedPin) {
+             state.fixedSeats.push({ studentId: targetStudentId, tableIndex: draggedPin.tableIndex, seatIndex: draggedPin.seatIndex });
+          }
+          saveState();
+          renderBoard(state.arrangement);
+      }
+      return;
+  }
+  
+  const targetStudentId = seat.dataset.studentId;
+  if (!state.fixedSeats) state.fixedSeats = [];
+  const draggedPin = state.fixedSeats.find(fs => fs.studentId === studentId);
+  state.fixedSeats = state.fixedSeats.filter(fs => fs.studentId !== studentId && fs.studentId !== targetStudentId);
+  state.fixedSeats.push({ studentId, tableIndex, seatIndex });
+  if (targetStudentId && draggedPin) {
+     state.fixedSeats.push({ studentId: targetStudentId, tableIndex: draggedPin.tableIndex, seatIndex: draggedPin.seatIndex });
+  }
+  saveState();
+  render();
+});
+els.board.addEventListener('click', (e) => {
+  const seat = e.target.closest('.seat.occupied');
+  if (!seat) return;
+  if (!state.arrangement || !state.arrangement.length) {
+     const studentId = seat.dataset.studentId;
+     state.fixedSeats = state.fixedSeats.filter(fs => fs.studentId !== studentId);
+     saveState();
+     render();
+  }
 });
 
 function render() {
@@ -308,72 +403,105 @@ function renderFrontStudents() {
     els.frontStudentList.innerHTML = '<span class="muted-message">Thêm học sinh để chọn.</span>';
     return;
   }
-  els.frontStudentList.innerHTML = state.students.map((student) => `<label class="front-student-option"><input type="checkbox" data-front-student="${student.id}" ${selected.includes(student.id) ? 'checked' : ''} /><span class="front-check"></span><span>${escapeHtml(student.name)}</span></label>`).join('');
+  els.frontStudentList.innerHTML = state.students.map((student) => {
+    const isPinned = state.fixedSeats && state.fixedSeats.some(fs => fs.studentId === student.id);
+    return `<label class="front-student-option ${isPinned ? 'is-pinned' : ''}" draggable="true" data-drag-id="${student.id}"><input type="checkbox" data-front-student="${student.id}" ${selected.includes(student.id) ? 'checked' : ''} /><span class="front-check"></span><span>${escapeHtml(student.name)} ${isPinned ? '📌' : ''}</span></label>`;
+  }).join('');
 }
 
 function renderBoard(arrangement) {
+  let isDraft = false;
+  let displayArrangement = arrangement;
   if (!arrangement.length) {
-    els.board.innerHTML = '<div class="board-placeholder"><span>✦</span><strong>Sơ đồ sẽ xuất hiện ở đây</strong><small>Thêm học sinh và nhấn random để bắt đầu.</small></div>';
-    els.resultFooter.innerHTML = '<span>Chưa có sơ đồ cho hôm nay</span><span class="result-tip">Mỗi lần random tạo ra một sắp xếp mới</span>';
-    return;
+    isDraft = true;
+    const tableCount = state.layout.rows * state.layout.columns;
+    const tables = Array.from({ length: tableCount }, () => [null, null]);
+    if (state.fixedSeats) {
+      for (const fs of state.fixedSeats) {
+        const student = state.students.find(s => s.id === fs.studentId);
+        if (student) tables[fs.tableIndex][fs.seatIndex] = student;
+      }
+    }
+    displayArrangement = tables;
   }
+
   const columns = state.layout.columns;
-  els.board.innerHTML = `<div class="seat-grid" style="grid-template-columns: repeat(${columns}, minmax(120px, 1fr))">${arrangement.map((table, index) => `<div class="table ${index < columns ? 'front-table' : ''}"><span class="table-number">BÀN ${String(index + 1).padStart(2, '0')}</span><div class="table-seats">${table.map((student) => `<div class="seat occupied"><span class="seat-avatar ${avatarTone(student)}">${initials(student.name)}</span><span class="seat-name" title="${escapeHtml(student.name)}">${escapeHtml(student.name)}</span></div>`).join('')}</div></div>`).join('')}</div>`;
-  if (state.lastRandomized) {
+  els.board.innerHTML = `<div class="seat-grid" style="grid-template-columns: repeat(${columns}, minmax(120px, 1fr))">${displayArrangement.map((table, index) => `<div class="table ${index < columns ? 'front-table' : ''}"><span class="table-number">BÀN ${String(index + 1).padStart(2, '0')}</span><div class="table-seats">${table.map((student, seatIndex) => {
+    if (!student) {
+      return `<div class="seat empty-seat" data-table-index="${index}" data-seat-index="${seatIndex}"></div>`;
+    }
+    const isPinned = state.fixedSeats && state.fixedSeats.some(fs => fs.studentId === student.id);
+    const pinHtml = isPinned ? `<span class="pin-icon" title="Đã ghim">📌</span>` : '';
+    return `<div class="seat occupied ${isPinned ? 'is-pinned' : ''}" draggable="true" data-student-id="${student.id}" data-table-index="${index}" data-seat-index="${seatIndex}">${pinHtml}<span class="seat-avatar ${avatarTone(student)}">${initials(student.name)}</span><span class="seat-name" title="${escapeHtml(student.name)}">${escapeHtml(student.name)}</span></div>`;
+  }).join('')}</div></div>`).join('')}</div>`;
+  
+  if (!isDraft && state.lastRandomized) {
     els.resultFooter.innerHTML = `<span>Đã xếp ${arrangement.flat().length} người · ${formatTime(state.lastRandomized)}</span><span class="result-tip">Seed ${escapeHtml(String(state.seed || ''))}</span>`;
+  } else {
+    els.resultFooter.innerHTML = `<span>Kéo thả học sinh để ghim chỗ trước khi random</span><span class="result-tip">Hoặc bấm Random ngay</span>`;
   }
 }
 
 function findArrangement(students, rules, layout, seed) {
-  const tableCount = Math.ceil(students.length / 2);
+  const tableCount = layout.rows * layout.columns;
   const tables = Array.from({ length: tableCount }, () => []);
-  const frontStudents = students.filter((student) => state.frontRow.includes(student.id));
-  const otherStudents = students.filter((student) => !state.frontRow.includes(student.id));
+  const fixedSeats = state.fixedSeats || [];
+  const fixedStudentIds = new Set(fixedSeats.map(fs => fs.studentId));
+  for (const fs of fixedSeats) {
+    const student = students.find(s => s.id === fs.studentId);
+    if (student) tables[fs.tableIndex][fs.seatIndex] = student;
+  }
+  const unpinnedStudents = students.filter(s => !fixedStudentIds.has(s.id));
+  const frontStudents = unpinnedStudents.filter((student) => state.frontRow.includes(student.id));
+  const otherStudents = unpinnedStudents.filter((student) => !state.frontRow.includes(student.id));
   const blocked = new Set(rules.map(([first, second]) => [first, second].sort().join('|')));
   const random = seededRandom(seed);
   const candidates = frontStudents.length
     ? shuffle(frontStudents, random).concat(shuffle(otherStudents, random))
-    : shuffle(students, random);
+    : shuffle(unpinnedStudents, random);
   const placeNext = (studentIndex) => {
     if (studentIndex === candidates.length) return true;
     const student = candidates[studentIndex];
     const eligibleTables = tables.map((table, index) => index).filter((index) => {
       const isFrontEligible = !frontStudents.includes(student) || index < layout.columns;
-      return isFrontEligible && tables[index].length < 2;
+      const occupiedCount = tables[index].filter(s => s !== undefined).length;
+      return isFrontEligible && occupiedCount < 2;
     });
-    for (const tableIndex of shuffle(eligibleTables, random)) {
+    for (const tableIndex of eligibleTables) {
+      const emptySeatIndex = tables[tableIndex][0] === undefined ? 0 : 1;
       if (!canSit(student, tableIndex, tables, layout, blocked)) continue;
-      tables[tableIndex].push(student);
+      tables[tableIndex][emptySeatIndex] = student;
       if (placeNext(studentIndex + 1)) return true;
-      tables[tableIndex].pop();
+      tables[tableIndex][emptySeatIndex] = undefined;
     }
     return false;
   };
-  return placeNext(0) ? tables.map((table) => [...table]) : null;
+  return placeNext(0) ? tables.map((table) => table.filter(s => s !== undefined)) : null;
 }
 
 function canSit(student, index, tables, layout, blocked) {
   const row = Math.floor(index / layout.columns);
   const column = index % layout.columns;
-  if (tables[index].some((neighbor) => blocked.has([student.id, neighbor.id].sort().join('|')))) return false;
+  if (tables[index].some((neighbor) => neighbor && blocked.has([student.id, neighbor.id].sort().join('|')))) return false;
   const nearby = [index - 1, index + 1, index - layout.columns, index + layout.columns];
   return nearby.every((nearIndex) => {
     if (nearIndex < 0 || nearIndex >= tables.length) return true;
     const nearRow = Math.floor(nearIndex / layout.columns);
     const nearColumn = nearIndex % layout.columns;
     if (Math.abs(nearRow - row) + Math.abs(nearColumn - column) !== 1) return true;
-    return tables[nearIndex].every((neighbor) => !blocked.has([student.id, neighbor.id].sort().join('|')));
+    return tables[nearIndex].every((neighbor) => !neighbor || !blocked.has([student.id, neighbor.id].sort().join('|')));
   });
 }
 
 function loadState() {
   const saved = readStorage(STORAGE_KEY, null);
-  if (!saved) return { students: [], rules: [], frontRow: [], arrangement: [], seed: '', history: {}, layout: { rows: 4, columns: 5 } };
+  if (!saved) return { students: [], rules: [], frontRow: [], fixedSeats: [], arrangement: [], seed: '', history: {}, layout: { rows: 4, columns: 5 } };
   const history = saved.history && typeof saved.history === 'object' ? Object.fromEntries(Object.entries(saved.history).filter(([, record]) => record && Array.isArray(record.front))) : {};
   const students = Array.isArray(saved.students) ? saved.students.filter((student) => student && typeof student.id === 'string' && typeof student.name === 'string').map((student) => ({ id: student.id, name: student.name.slice(0, 40), present: student.present !== false })) : [];
   const rules = Array.isArray(saved.rules) ? saved.rules.filter((rule) => Array.isArray(rule) && rule.length === 2 && rule.every((id) => typeof id === 'string')) : [];
+  const fixedSeats = Array.isArray(saved.fixedSeats) ? saved.fixedSeats.filter((s) => s && typeof s.studentId === 'string' && typeof s.tableIndex === 'number' && typeof s.seatIndex === 'number') : [];
   const arrangement = Array.isArray(saved.arrangement) && saved.arrangement.every((seat) => Array.isArray(seat)) ? saved.arrangement.map((table) => table.filter((student) => student && typeof student.id === 'string' && typeof student.name === 'string')) : [];
-  return { ...saved, students, rules, frontRow: Array.isArray(saved.frontRow) ? saved.frontRow.filter((id) => typeof id === 'string') : [], seed: typeof saved.seed === 'string' ? saved.seed.slice(0, 100) : '', history, layout: saved.layout && typeof saved.layout === 'object' ? saved.layout : { rows: 4, columns: 5 }, arrangement };
+  return { ...saved, students, rules, frontRow: Array.isArray(saved.frontRow) ? saved.frontRow.filter((id) => typeof id === 'string') : [], fixedSeats, seed: typeof saved.seed === 'string' ? saved.seed.slice(0, 100) : '', history, layout: saved.layout && typeof saved.layout === 'object' ? saved.layout : { rows: 4, columns: 5 }, arrangement };
 }
 function readStorage(key, fallback) { try { const value = localStorage.getItem(key); return value ? JSON.parse(value) : fallback; } catch { localStorage.removeItem(key); return fallback; } }
 function saveState() { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch { showToast('Không thể lưu dữ liệu trên trình duyệt này.'); } }
