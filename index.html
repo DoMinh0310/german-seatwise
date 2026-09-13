@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#eef4f1" />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'" />
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <title>Seatwise | Xếp chỗ thông minh</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <a class="brand" href="#top" aria-label="Seatwise trang chủ">
+          <span class="brand-mark">S</span>
+          <span>seatwise</span>
+        </a>
+        <div class="topbar-meta">
+          <span class="save-status"><i></i> Dữ liệu được lưu tự động</span>
+          <button class="icon-button theme-toggle" id="themeToggle" title="Chuyển sang giao diện tối" aria-label="Chuyển sang giao diện tối">☾</button>
+          <button class="icon-button" id="resetData" title="Xóa toàn bộ dữ liệu" aria-label="Xóa toàn bộ dữ liệu">↺</button>
+        </div>
+      </header>
+      <div class="festival-banner" id="festivalBanner" aria-label="Lễ hội Đức theo mùa">
+        <span class="flag-stripe stripe-black"></span><span class="flag-stripe stripe-red"></span><span class="flag-stripe stripe-gold"></span>
+        <span class="festival-copy" id="festivalCopy">SEPTEMBER IN DEUTSCHLAND <b>·</b> CANNSTATTER VOLKSFEST <b>25.09 — 11.10.2026</b></span>
+      </div>
+      <aside class="sticker-rail sticker-rail-left" aria-label="Sticker chủ đề Đức">
+        <button class="theme-sticker sticker-pretzel" data-sticker="pretzel" type="button" title="Kéo sticker bánh pretzel">🥨</button>
+        <button class="theme-sticker sticker-leaf" data-sticker="leaf" type="button" title="Kéo sticker lá mùa thu">🍂</button>
+      </aside>
+      <aside class="sticker-rail sticker-rail-right" aria-label="Sticker lễ hội Đức">
+        <button class="theme-sticker sticker-beer" data-sticker="beer" type="button" title="Kéo sticker lễ hội">🍺</button>
+        <button class="theme-sticker sticker-wheel" data-sticker="wheel" type="button" title="Kéo sticker vòng quay hội chợ">🎠</button>
+      </aside>
+
+      <main id="top">
+        <section class="intro-section">
+          <div>
+            <p class="eyebrow">KLASSENZIMMER ORGANIZER <span>•</span> <span id="currentDate"></span></p>
+            <h1>Để mỗi chỗ ngồi<br /><em>có một lý do.</em></h1>
+            <p class="intro-copy">Tạo một sơ đồ chỗ ngồi cân bằng chỉ trong vài giây. Danh sách lớp và các quy tắc của bạn luôn ở đây, sẵn sàng cho buổi học tiếp theo.</p>
+          </div>
+          <div class="hero-aside">
+            <div class="vocabulary-card" id="vocabularyCard" aria-label="Từ vựng tiếng Đức hôm nay" tabindex="0">
+              <span class="vocabulary-kicker">WORT DES TAGES <i>·</i> A2</span>
+              <button class="vocabulary-nav vocabulary-prev" id="vocabularyPrev" type="button" aria-label="Từ trước">&lt;</button>
+              <div class="vocabulary-list" id="vocabularyList"></div>
+              <button class="vocabulary-nav vocabulary-next" id="vocabularyNext" type="button" aria-label="Từ tiếp theo">&gt;</button>
+              <div class="vocabulary-footer"><span id="vocabularyCounter">1 / 3</span><span>Vòng lặp từ vựng</span></div>
+            </div>
+            <div class="hero-note">
+              <span class="note-icon">✦</span>
+              <p><strong>Gợi ý nhỏ</strong><br />Hãy thêm mọi người một lần. Mỗi ngày chỉ cần đánh dấu những ai vắng mặt.</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="workspace-grid">
+          <div class="panel roster-panel">
+            <div class="panel-heading">
+              <div>
+                <span class="section-kicker">01 / DANH SÁCH</span>
+                <h2>Lớp học của bạn</h2>
+              </div>
+              <span class="count-pill"><strong id="presentCount">0</strong> có mặt</span>
+            </div>
+
+            <form class="add-student-form" id="addStudentForm">
+              <label class="sr-only" for="studentName">Tên học sinh</label>
+              <input id="studentName" name="studentName" type="text" placeholder="Nhập tên học sinh mới..." autocomplete="off" maxlength="40" />
+              <button class="primary-small" type="submit">Thêm <span>↵</span></button>
+            </form>
+            <div class="roster-tools">
+              <span><span id="studentCount">0</span> thành viên trong lớp</span>
+              <button class="text-button" id="markAllPresent" type="button">Có mặt tất cả</button>
+            </div>
+            <div class="student-list" id="studentList">
+              <div class="empty-state" id="emptyState">
+                <div class="empty-icon">＋</div>
+                <strong>Lớp học còn trống</strong>
+                <span>Thêm tên đầu tiên để bắt đầu.</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="side-column">
+            <div class="panel settings-panel">
+              <div class="panel-heading compact">
+                <div>
+                  <span class="section-kicker">02 / QUY TẮC</span>
+                    <h2>Luật chỗ ngồi</h2>
+                </div>
+                <span class="rule-count" id="ruleCount">0</span>
+              </div>
+              <p class="panel-description">Chọn cặp không ngồi cạnh nhau và những người có thể ngồi ở hàng đầu.</p>
+              <form class="rule-form" id="ruleForm">
+                <div class="select-row">
+                  <select id="ruleStudentA" aria-label="Học sinh thứ nhất"><option value="">Chọn người thứ nhất</option></select>
+                  <span class="not-symbol">×</span>
+                  <select id="ruleStudentB" aria-label="Học sinh thứ hai"><option value="">Chọn người thứ hai</option></select>
+                </div>
+                <button class="secondary-button" type="submit">+ Thêm quy tắc</button>
+              </form>
+              <div class="rule-list" id="ruleList"><span class="muted-message">Chưa có quy tắc nào.</span></div>
+              <div class="front-row-heading"><span>Được ngồi hàng đầu</span><strong id="frontRowCapacity">0 / 0 chỗ</strong></div>
+              <div class="front-student-list" id="frontStudentList"><span class="muted-message">Thêm học sinh để chọn.</span></div>
+            </div>
+
+            <div class="panel layout-panel">
+              <div class="panel-heading compact">
+                <div>
+                  <span class="section-kicker">03 / KHÔNG GIAN</span>
+                  <h2>Bố cục lớp</h2>
+                </div>
+              </div>
+              <div class="layout-controls">
+                <label>Hàng <input id="rowInput" type="number" min="1" max="8" value="4" /></label>
+                <label>Cột <input id="columnInput" type="number" min="1" max="8" value="5" /></label>
+              </div>
+              <label class="seed-control">Seed random <input id="seedInput" type="text" inputmode="numeric" placeholder="Tự tạo mỗi lần" /></label>
+              <p class="layout-hint"><span class="teacher-dot"></span> Mỗi bàn có 2 người · Điền từ trên xuống dưới</p>
+            </div>
+
+            <button class="randomize-button" id="randomizeButton" type="button">
+              <span class="shuffle-symbol">⤨</span>
+              <span><strong>Random chỗ ngồi</strong><small>Chỉ xếp những bạn có mặt hôm nay</small></span>
+              <span class="arrow">→</span>
+            </button>
+          </div>
+        </section>
+
+        <section class="seating-section">
+          <div class="section-header-row">
+            <div>
+              <span class="section-kicker">SƠ ĐỒ HÔM NAY <span class="section-date" id="seatingDate"></span></span>
+              <h2>Chỗ ngồi của lớp</h2>
+            </div>
+            <div class="legend"><span><i class="legend-present"></i> Có mặt</span><span><i class="legend-front"></i> Hàng đầu</span><span><i class="legend-empty"></i> Bàn trống</span></div>
+          </div>
+          <div class="seating-board-wrap">
+            <div class="teacher-desk"><span>✦</span> BÀN GIÁO VIÊN</div>
+            <div class="seating-board" id="seatingBoard">
+              <div class="board-placeholder"><span>✦</span><strong>Sơ đồ sẽ xuất hiện ở đây</strong><small>Thêm học sinh và nhấn random để bắt đầu.</small></div>
+            </div>
+          </div>
+          <div class="result-footer" id="resultFooter"><span>Chưa có sơ đồ cho hôm nay</span><span class="result-tip">Mỗi lần random tạo ra một sắp xếp mới</span></div>
+        </section>
+      </main>
+      <footer><span>seatwise / classroom made simple</span><span class="footer-actions"><button class="history-button" id="historyButton" type="button">Lịch sử random ↗</button><button class="history-button" id="attendanceButton" type="button">Điểm danh theo ngày ↗</button></span><span>Local-first · Riêng tư · Dễ dùng</span><span class="author-credit">Made by Mon 😉</span></footer>
+    </div>
+    <div class="history-modal" id="historyModal" hidden>
+      <div class="history-backdrop" data-close-history></div>
+      <section class="history-sheet" role="dialog" aria-modal="true" aria-labelledby="historyTitle">
+        <div class="history-heading"><div><span class="section-kicker">ARCHIV / LỊCH SỬ</span><h2 id="historyTitle">Ai đã ngồi đầu nhiều nhất?</h2></div><button class="history-close" id="historyClose" type="button" aria-label="Đóng lịch sử">×</button></div>
+        <p class="history-description">Xếp hạng từ ít đến nhiều dựa trên các sơ đồ đã lưu theo ngày.</p>
+        <div class="history-layout"><div class="history-days" id="historyDays"></div><div class="ranking-chart" id="rankingChart"></div></div>
+      </section>
+    </div>
+    <div class="attendance-modal" id="attendanceModal" hidden>
+      <div class="history-backdrop" data-close-attendance></div>
+      <section class="history-sheet attendance-sheet" role="dialog" aria-modal="true" aria-labelledby="attendanceTitle">
+        <div class="history-heading"><div><span class="section-kicker">ATTENDANCE / ĐIỂM DANH</span><h2 id="attendanceTitle">Đi học trong tuần</h2></div><button class="history-close" id="attendanceClose" type="button" aria-label="Đóng điểm danh">×</button></div>
+        <p class="history-description">Ai được xếp chỗ sẽ được tính là đi học. Thống kê chỉ tính các ngày thứ 2 đến thứ 6 đã có sơ đồ.</p>
+        <div class="attendance-summary" id="attendanceSummary"></div>
+        <div class="attendance-table" id="attendanceTable"></div>
+      </section>
+    </div>
+    <div class="toast" id="toast" role="status"></div>
+    <script src="./app.js"></script>
+  </body>
+</html>
