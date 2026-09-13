@@ -296,14 +296,6 @@ els.board.addEventListener('drop', (e) => {
           state.arrangement[tableIndex][seatIndex] = srcStudent;
           state.arrangement[srcTable][srcSeat] = destStudent;
           
-          const targetStudentId = seat.dataset.studentId;
-          if (!state.fixedSeats) state.fixedSeats = [];
-          const draggedPin = state.fixedSeats.find(fs => fs.studentId === studentId);
-          state.fixedSeats = state.fixedSeats.filter(fs => fs.studentId !== studentId && fs.studentId !== targetStudentId);
-          state.fixedSeats.push({ studentId, tableIndex, seatIndex });
-          if (targetStudentId && draggedPin) {
-             state.fixedSeats.push({ studentId: targetStudentId, tableIndex: draggedPin.tableIndex, seatIndex: draggedPin.seatIndex });
-          }
           saveState();
           renderBoard(state.arrangement);
       }
