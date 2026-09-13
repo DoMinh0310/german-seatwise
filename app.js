@@ -226,15 +226,21 @@ document.addEventListener('dragstart', (e) => {
   const card = e.target.closest('.student-card');
   const seat = e.target.closest('.seat.occupied');
   
-  if (option) {
-    dragSourceId = option.dataset.dragId;
-    e.dataTransfer.setData('text/plain', dragSourceId);
-    e.dataTransfer.effectAllowed = 'copyMove';
-  } else if (card) {
-    dragSourceId = card.dataset.dragId;
+  const hasArrangement = state.arrangement && state.arrangement.length > 0;
+
+  if (option || card) {
+    if (hasArrangement) {
+        e.preventDefault();
+        return;
+    }
+    dragSourceId = (option || card).dataset.dragId;
     e.dataTransfer.setData('text/plain', dragSourceId);
     e.dataTransfer.effectAllowed = 'copyMove';
   } else if (seat) {
+    if (hasArrangement && Number(seat.dataset.tableIndex) >= state.layout.columns) {
+        e.preventDefault();
+        return;
+    }
     dragSourceId = seat.dataset.studentId;
     e.dataTransfer.setData('text/plain', dragSourceId);
     e.dataTransfer.effectAllowed = 'move';
@@ -248,7 +254,9 @@ document.addEventListener('dragend', (e) => {
 });
 els.board.addEventListener('dragover', (e) => {
   const seat = e.target.closest('.seat');
+  const hasArrangement = state.arrangement && state.arrangement.length > 0;
   if (seat && dragSourceId) {
+    if (hasArrangement && Number(seat.dataset.tableIndex) >= state.layout.columns) return;
     e.preventDefault();
     seat.classList.add('drag-over');
   }
@@ -260,18 +268,23 @@ els.board.addEventListener('dragleave', (e) => {
 els.board.addEventListener('drop', (e) => {
   const seat = e.target.closest('.seat');
   if (!seat) return;
+  
+  const hasArrangement = state.arrangement && state.arrangement.length > 0;
+  const tableIndex = Number(seat.dataset.tableIndex);
+  
+  if (hasArrangement && tableIndex >= state.layout.columns) return;
+
   e.preventDefault();
   seat.classList.remove('drag-over');
   
   const studentId = e.dataTransfer.getData('text/plain') || dragSourceId;
   if (!studentId) return;
   
-  const tableIndex = Number(seat.dataset.tableIndex);
   const seatIndex = Number(seat.dataset.seatIndex);
   
-  if (state.arrangement && state.arrangement.length) {
+  if (hasArrangement) {
       let srcTable, srcSeat, srcStudent;
-      for (let i = 0; i < state.arrangement.length; i++) {
+      for (let i = 0; i < state.layout.columns; i++) {
           for (let j = 0; j < state.arrangement[i].length; j++) {
               if (state.arrangement[i][j] && state.arrangement[i][j].id === studentId) {
                   srcTable = i; srcSeat = j; srcStudent = state.arrangement[i][j];
@@ -305,6 +318,11 @@ els.board.addEventListener('drop', (e) => {
   if (targetStudentId && draggedPin) {
      state.fixedSeats.push({ studentId: targetStudentId, tableIndex: draggedPin.tableIndex, seatIndex: draggedPin.seatIndex });
   }
+
+  if (tableIndex < state.layout.columns) {
+    if (!state.frontRow.includes(studentId)) state.frontRow.push(studentId);
+  }
+
   saveState();
   render();
 });
@@ -440,7 +458,9 @@ function renderBoard(arrangement) {
     }
     const isPinned = state.fixedSeats && state.fixedSeats.some(fs => fs.studentId === student.id);
     const pinHtml = isPinned ? `<span class="pin-icon" title="Đã ghim">📌</span>` : '';
-    return `<div class="seat occupied ${isPinned ? 'is-pinned' : ''}" draggable="true" data-student-id="${student.id}" data-table-index="${index}" data-seat-index="${seatIndex}">${pinHtml}<span class="seat-avatar ${avatarTone(student)}">${initials(student.name)}</span><span class="seat-name" title="${escapeHtml(student.name)}">${escapeHtml(student.name)}</span></div>`;
+    const isFrontTable = index < columns;
+    const canDrag = isDraft || isFrontTable;
+    return `<div class="seat occupied ${isPinned ? 'is-pinned' : ''}" ${canDrag ? 'draggable="true"' : ''} data-student-id="${student.id}" data-table-index="${index}" data-seat-index="${seatIndex}">${pinHtml}<span class="seat-avatar ${avatarTone(student)}">${initials(student.name)}</span><span class="seat-name" title="${escapeHtml(student.name)}">${escapeHtml(student.name)}</span></div>`;
   }).join('')}</div></div>`).join('')}</div>`;
   
   if (!isDraft && state.lastRandomized) {
