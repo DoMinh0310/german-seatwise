@@ -10,6 +10,14 @@ const vocabulary = [
 const state = loadState();
 let toastTimer;
 
+// Khởi tạo Mobile Drag and Drop Polyfill
+if (typeof MobileDragDrop !== 'undefined') {
+  MobileDragDrop.polyfill({
+    holdToDrag: 300 // Giữ 300ms để kéo, giúp thao tác vuốt cuộn trang vẫn hoạt động
+  });
+  window.addEventListener('touchmove', function() {}, {passive: false});
+}
+
 const $ = (selector) => document.querySelector(selector);
 const els = {
   currentDate: $('#currentDate'),
