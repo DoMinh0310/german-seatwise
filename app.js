@@ -176,13 +176,6 @@ $('#randomizeButton').addEventListener('click', () => {
     showToast(`Bố cục hiện tại chỉ chứa được ${seatCount} người.`);
     return;
   }
-  if (presentStudents.length % 2 !== 0) {
-    clearArrangement();
-    saveState();
-    renderBoard(state.arrangement);
-    showToast('Cần thêm 1 người để mỗi bàn đủ 2 người.');
-    return;
-  }
   if (state.frontRow.filter((id) => presentStudents.some((student) => student.id === id)).length > frontCapacity) {
     showToast(`Hàng đầu chỉ có ${frontCapacity} chỗ với bố cục hiện tại.`);
     return;
@@ -332,7 +325,7 @@ function renderBoard(arrangement) {
 }
 
 function findArrangement(students, rules, layout, seed) {
-  const tableCount = students.length / 2;
+  const tableCount = Math.ceil(students.length / 2);
   const tables = Array.from({ length: tableCount }, () => []);
   const frontStudents = students.filter((student) => state.frontRow.includes(student.id));
   const otherStudents = students.filter((student) => !state.frontRow.includes(student.id));
