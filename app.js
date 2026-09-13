@@ -372,7 +372,8 @@ function renderStudents() {
 }
 
 function renderRuleOptions() {
-  const options = state.students.map((student) => `<option value="${student.id}">${escapeHtml(student.name)}</option>`).join('');
+  const presentStudents = state.students.filter(s => s.present);
+  const options = presentStudents.map((student) => `<option value="${student.id}">${escapeHtml(student.name)}</option>`).join('');
   els.ruleA.innerHTML = `<option value="">Chọn người thứ nhất</option>${options}`;
   els.ruleB.innerHTML = `<option value="">Chọn người thứ hai</option>${options}`;
 }
@@ -393,15 +394,18 @@ function renderRules() {
 
 function renderFrontStudents() {
   const capacity = state.layout.columns * 2;
-  const selected = state.frontRow.filter((id) => state.students.some((student) => student.id === id));
-  state.frontRow = selected;
-  els.frontRowCapacity.textContent = `${selected.length} / ${capacity} chỗ`;
-  if (!state.students.length) {
+  state.frontRow = state.frontRow.filter((id) => state.students.some((student) => student.id === id));
+  
+  const presentStudents = state.students.filter(s => s.present);
+  const presentSelectedCount = state.frontRow.filter((id) => presentStudents.some((student) => student.id === id)).length;
+  
+  els.frontRowCapacity.textContent = `${presentSelectedCount} / ${capacity} chỗ`;
+  if (!presentStudents.length) {
     els.frontStudentList.innerHTML = '<span class="muted-message">Thêm học sinh để chọn.</span>';
     return;
   }
-  els.frontStudentList.innerHTML = state.students.map((student) => {
-    return `<label class="front-student-option" draggable="true" data-drag-id="${student.id}"><input type="checkbox" data-front-student="${student.id}" ${selected.includes(student.id) ? 'checked' : ''} /><span class="front-check"></span><span>${escapeHtml(student.name)}</span></label>`;
+  els.frontStudentList.innerHTML = presentStudents.map((student) => {
+    return `<label class="front-student-option" draggable="true" data-drag-id="${student.id}"><input type="checkbox" data-front-student="${student.id}" ${state.frontRow.includes(student.id) ? 'checked' : ''} /><span class="front-check"></span><span>${escapeHtml(student.name)}</span></label>`;
   }).join('');
 }
 
